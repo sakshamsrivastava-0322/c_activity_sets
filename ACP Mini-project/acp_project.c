@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-#define WIDTH 60
-#define HEIGHT 30
+#define WIDTH 80
+#define HEIGHT 35
 #define MAX_SHAPES 50
 
 // Shape types
@@ -24,6 +24,12 @@ Shape shapes[MAX_SHAPES];
 int shape_count = 0;
 int next_id = 1;
 
+// Helper to flush leftover characters from stdin
+void flush_input() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+}
+
 // --- Canvas Functions ---
 
 void clear_canvas() {
@@ -35,7 +41,7 @@ void clear_canvas() {
 }
 
 void display_canvas() {
-    // Print column headers (units digit) for alignment help
+    // Print column headers (units digit) for scaling assistance
     printf("   ");
     for (int j = 0; j < WIDTH; j++) printf("%d", j % 10);
     printf("\n");
@@ -81,23 +87,23 @@ void draw_line(int x0, int y0, int x1, int y1) {
     }
 }
 
-// Midpoint Circle Algorithm with Aspect Ratio Correction
+// Fixed Midpoint Circle Algorithm with 2:1 Font Scale Adjustment
 void draw_circle(int xc, int yc, int r) {
     int x = 0;
     int y = r;
     int d = 3 - 2 * r;
     
     while (y >= x) {
-        // Standard terminals have tall characters (~2:1 aspect ratio).
-        // Multiplying horizontal steps by 2 keeps the circle visually round.
-        set_pixel(xc + x * 2, yc + y);
-        set_pixel(xc - x * 2, yc + y);
-        set_pixel(xc + x * 2, yc - y);
-        set_pixel(xc - x * 2, yc - y);
-        set_pixel(xc + y * 2, yc + x);
-        set_pixel(xc - y * 2, yc + x);
-        set_pixel(xc + y * 2, yc - x);
-        set_pixel(xc - y * 2, yc - x);
+        // Step x and step y must be adjusted horizontally by 2.1x 
+        // to counter terminal text height-to-width distortion.
+        set_pixel(xc + (int)(x * 2.1), yc + y);
+        set_pixel(xc - (int)(x * 2.1), yc + y);
+        set_pixel(xc + (int)(x * 2.1), yc - y);
+        set_pixel(xc - (int)(x * 2.1), yc - y);
+        set_pixel(xc + (int)(y * 2.1), yc + x);
+        set_pixel(xc - (int)(y * 2.1), yc + x);
+        set_pixel(xc + (int)(y * 2.1), yc - x);
+        set_pixel(xc - (int)(y * 2.1), yc - x);
         
         x++;
         if (d > 0) {
@@ -110,10 +116,10 @@ void draw_circle(int xc, int yc, int r) {
 }
 
 void draw_rectangle(int x1, int y1, int x2, int y2) {
-    draw_line(x1, y1, x2, y1); // Top side
-    draw_line(x2, y1, x2, y2); // Right side
-    draw_line(x2, y2, x1, y2); // Bottom side
-    draw_line(x1, y2, x1, y1); // Left side
+    draw_line(x1, y1, x2, y1); 
+    draw_line(x2, y1, x2, y2); 
+    draw_line(x2, y2, x1, y2); 
+    draw_line(x1, y2, x1, y1); 
 }
 
 void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3) {
@@ -124,7 +130,6 @@ void draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3) {
 
 // --- Engine Core ---
 
-// Clear canvas and redraw all non-deleted vector shapes
 void render_all() {
     clear_canvas();
     for (int i = 0; i < shape_count; i++) {
@@ -185,7 +190,7 @@ void add_shape_menu() {
 
     int choice;
     printf("\nSelect Shape to Add:\n1. Circle\n2. Rectangle\n3. Line\n4. Triangle\nChoice: ");
-    scanf("%d", &choice);
+    if (scanf("%d", &choice) != 1) { flush_input(); return; }
 
     Shape s;
     s.id = next_id++;
@@ -194,7 +199,7 @@ void add_shape_menu() {
     switch (choice) {
         case 1:
             s.type = CIRCLE;
-            printf("Enter Center X, Center Y, and Radius: ");
+            printf("Enter Center X (0-79), Center Y (0-34), and Radius: ");
             scanf("%d %d %d", &s.x1, &s.y1, &s.radius);
             break;
         case 2:
@@ -216,6 +221,7 @@ void add_shape_menu() {
             printf("Invalid choice!\n");
             return;
     }
+    flush_input();
 
     shapes[shape_count++] = s;
     printf("Shape added successfully with ID: %d\n", s.id);
@@ -225,7 +231,8 @@ void delete_shape_menu() {
     list_shapes();
     int id;
     printf("Enter the ID of the shape to delete: ");
-    scanf("%d", &id);
+    if (scanf("%d", &id) != 1) { flush_input(); return; }
+    flush_input();
 
     int index = find_shape_index(id);
     if (index != -1) {
@@ -240,7 +247,8 @@ void modify_shape_menu() {
     list_shapes();
     int id;
     printf("Enter the ID of the shape to modify: ");
-    scanf("%d", &id);
+    if (scanf("%d", &id) != 1) { flush_input(); return; }
+    flush_input();
 
     int index = find_shape_index(id);
     if (index == -1) {
@@ -268,6 +276,7 @@ void modify_shape_menu() {
             scanf("%d %d %d %d %d %d", &s->x1, &s->y1, &s->x2, &s->y2, &s->x3, &s->y3);
             break;
     }
+    flush_input();
     printf("Shape ID %d updated successfully.\n", id);
 }
 
@@ -277,14 +286,20 @@ int main() {
 
     while (choice != 5) {
         render_all();
-        printf("\n=================================");
-        printf("\n       2D GRAPHICS EDITOR        \n");
-        printf("=================================\n");
+        printf("\n=================================================================================\n");
+        printf("                               2D GRAPHICS EDITOR                                \n");
+        printf("=================================================================================\n");
         display_canvas();
         
         printf("\n1. Add Object\n2. Delete Object\n3. Modify Object\n4. List Objects\n5. Exit\n");
         printf("Enter your choice: ");
-        scanf("%d", &choice);
+        
+        if (scanf("%d", &choice) != 1) {
+            printf("Invalid input type. Please enter a number.\n");
+            flush_input();
+            continue;
+        }
+        flush_input();
 
         switch (choice) {
             case 1: add_shape_menu(); break;
